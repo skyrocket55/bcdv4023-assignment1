@@ -18,9 +18,8 @@ Submitted by: Ciel Recuerdo [101439257]
 Submitted On: April 1, 2024 10:00
 
 ### Project Setup
-1. cd client
-2. npm install
-3. npm start    http://localhost:3000
+1. npm install
+2. npm start    http://localhost:3000
 
 ### Sample UI Flows
 
