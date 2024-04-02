@@ -1,21 +1,7 @@
 Assignment #1: Bug Tracker
 
-Instructions
-Using the BugTracker code we worked on in class, modify it to capture the following information for each bug:
-
-Bug ID - string
-Bug Description - string
-How critical is the Bug (Low, Medium, High) - enum
-Is the Bug Resolved, or Not? - boolean
-Functionality: Add, View, Update, Delete a Bug.
-
-Style the DApp using any framework you prefer, or simply use basic CSS.
-
-Submit a link to a github repo that holds your assignment.
-
-
 Submitted by: Ciel Recuerdo [101439257]
-Submitted On: April 1, 2024 10:00
+Submitted On: April 3, 2024 10:00
 
 ### Project Setup
 1. npm install
@@ -24,12 +10,20 @@ Submitted On: April 1, 2024 10:00
 ### Sample UI Flows
 
 
+### TO DOs
+1. Fix Modal Window <DONE>
+2. Add
+3. Update
+4. Delete <DONE>
+
 ### Libraries Installed
-- bootstrap 5, react-router-dom, react-fontawesome, fontawesome free-solid-svg-icons, fontawesome free-brands-svg-icon
+- web3, react-bootstrap, bootstrap 5, react-router-dom, react-fontawesome, fontawesome free-solid-svg-icons, fontawesome free-brands-svg-icon
 
 ### Features
-1. Components
-    1.1.
-2. Routing using React Router 6
-3. Mobile Responsive UI
-4. Validations
+1. Contract updated with 
+    1.1.Bug ID - string
+    1.2. Bug Description - string
+    1.3. How critical is the Bug (Low, Medium, High) - enum
+    1.4. Is the Bug Resolved, or Not? - boolean
+2. Mobile Responsive UI
+3. Validations

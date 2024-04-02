@@ -19,12 +19,12 @@ contract TaskTracker {
     mapping(address => Task[]) private  Users;
 
     // check uint8 values with Enum values
-    function getSeverityString(Severity _severity) internal pure returns (string memory) {
-        if (_severity == Severity.Low) {
+    function getSeverityString(uint8 _severity) internal pure returns (string memory) {
+        if (_severity == uint8(Severity.Low)) {
             return "Low";
-        } else if (_severity == Severity.Medium) {
+        } else if (_severity == uint8(Severity.Medium)) {
             return "Medium";
-        } else if (_severity == Severity.Medium) {
+        } else if (_severity == uint8(Severity.High)) {
             return "High";
         } else {
             revert("Invalid severity");
@@ -45,7 +45,7 @@ contract TaskTracker {
         // add validation if index does not exists
         require(_bugIndex < Users[msg.sender].length, "Task does not exist");
         Task storage task = Users[msg.sender][_bugIndex];
-        return (task.id, task.description, getSeverityString(task.severity), task.isDone);
+        return (task.id, task.description, getSeverityString(uint8(task.severity)), task.isDone);
     }
     
     function updateBugStatus(uint256 _bugIndex, bool _status) external {
