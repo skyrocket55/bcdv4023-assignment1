@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader, ModalTitle } from 'react-bootstrap';
-import { faReceipt, faCube } from '@fortawesome/free-solid-svg-icons';
+import { Button, Modal, ModalBody, ModalFooter, ModalHeader, 
+        ModalTitle, Form } from 'react-bootstrap';
+import { faBug } from '@fortawesome/free-solid-svg-icons';
 import Header from './Header';
 import { contractAddress, contractABI } from '../config/contract.config';
 import Web3 from 'web3';
@@ -9,12 +10,41 @@ import Web3 from 'web3';
 function Dashboard() {
   // Use the state hook to manage component state
   const [showModal, setShowModal] = useState(false);
-  const [account, setAccount] = useState(null);
+  const [account, setAccount] = useState('');
   const [listOfTasks, setTaskList] = useState([]);
-  const handleModalClose = () => setShowModal(false);
-  const handleModalShow = async () => {
-    // await createBugList();
+  const [task, setTask] = useState({id: '', description: '', severity: ''});
+  const [actionSelected, setAction] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState('');
+  const [updatedStatus, setUpdatedStatus] = useState('');
+  
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    setUpdatedStatus('');
+  };  
+  
+  // used in Add and Update
+  const handleModalShow = async (event, taskId) => {
     setShowModal(true);
+    setAction(event.target.id);
+    console.log('task id: ', task.id);
+    // If action is updateButton, populate the fields with selected task values
+    if(event.target.id === 'updateButton') {
+      const selectedTask = listOfTasks.find(task => task.id === taskId);
+      console.log('updateButton selectedTask: ', selectedTask);
+      if(selectedTask) {
+        setTask({
+          id: selectedTask.id,
+          description: selectedTask.description,
+          severity: selectedTask.severity,
+          status: selectedTask.status
+        })
+      }
+      console.log('updateButton task: ', task);
+    } else {
+      // If adding a new task, clear the form fields
+      setTask({ id: '', description: '', severity: '', status: '' });
+    }
   }
 
   // Connect to Ganache
@@ -42,6 +72,7 @@ function Dashboard() {
           for (let i = 0; i < bugNum; i++) {
             const bug = await contract.methods.getTask(i).call({ from: defaultAccount });
             console.log('Bug:', bug.id, bug.description, bug.severity, bug.status);
+            bug.status = !bug.status ? 'Open' : 'Resolved';
             taskList.push(bug);
           }
           console.log('taskList: ', taskList.length);
@@ -70,11 +101,92 @@ function Dashboard() {
     }
   }
 
+  // handle form change
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setTask({
+      ...task,
+      [name]: value
+    });
+
+    // Update the local state of the updated status
+    // const updatedTaskList = [...listOfTasks];
+    // setTaskList(updatedTaskList);
+    console.log('handleChange updated taskList: ', listOfTasks);
+  }
+
+  // convert severity string to numerical values for uint contract param
+  function getSeverityUintValue(severity) {
+    let severityUint = null;
+    if(severity==='Low') {
+      severityUint = 0;
+    } else if(severity==='Medium') {
+      severityUint = 1;
+    } else {
+      severityUint = 2;
+    }
+    return severityUint;
+  }
+
+  // Add task
+  async function handleAdd(event) {
+    event.preventDefault();
+    console.log('formData: ', task);
+    try {
+      // to fix "out of gas" error, set a higher gas limit
+      const gasEstimate = await contract.methods.addTask(task.id, task.description, getSeverityUintValue(task.severity)).estimateGas({ from: account });
+      // Fix TypeError: Cannot mix BigInt by explicitly converting the gas estimate to a number 
+      const gasLimit = Number(gasEstimate) * 2; // Set multiplier as needed
+
+      await contract.methods
+        .addTask(task.id, task.description, getSeverityUintValue(task.severity))
+        .send({ from: account, gas: gasLimit }); // modifies the state of the contract 
+      
+      // Refresh the list
+      const updatedTaskList = [...listOfTasks, task];
+      setTaskList(updatedTaskList);
+
+      // reset the task form fields
+      setTask({id: '', description: '', severity: ''});
+
+      //close modal window
+      handleModalClose();
+    } catch (error) {
+      console.error('Error adding task:', error);
+    }
+  }
+
+  // Update task status
+  async function handleUpdate(index, status) {
+    console.log('handleUpdate: ', index, status);
+    try {
+      // Convert status to a boolean value
+      const selectedStatus = status === 'Resolved' ? true : false;
+      setUpdatedStatus(selectedStatus);
+      console.log('selectedStatus: ', selectedStatus);
+      await contract.methods
+        .updateBugStatus(index, selectedStatus)
+        .send({ from: account }); // modifies the state of the contract 
+
+      // Update the local state of the updated status using the functional form of setTaskList
+      setTaskList(prevTaskList => {
+        const updatedTaskList = [...prevTaskList]; // Create a new array
+        updatedTaskList[index] = { ...updatedTaskList[index], status: selectedStatus ? 'Resolved' : 'Open' }; // Update the status of the specific task
+        return updatedTaskList;
+      });
+
+      //close modal window
+      handleModalClose();
+    } catch (error) {
+      console.error('Error updating task:', error);
+    }
+  }
+
   return (
     <div>
         <div className='card mt-3'>
           <div className='card-header'>
-            <Header title="Bug Tracker" margin="ml-2" icon={faReceipt} size="xs"/>
+            <Header title="Bug Tracker" margin="ml-2" icon={faBug} size="xs"/>
           </div>
           <div className='card-body text-center justify-content-center'>
             <div className='row alert alert-info'>
@@ -99,9 +211,12 @@ function Dashboard() {
                                 <td width='20%'>{task.id}</td>
                                 <td width='20%'>{task.description}</td>
                                 <td width='20%'>{task.severity}</td>
-                                <td width='20%'>{!task.status ? 'Open' : 'Resolved'}</td>
+                                <td width='20%'>{task.status}</td>
                                 <td width='20%'>
-                                  <Button variant='outline-success' onClick={handleModalClose}>
+                                  <Button variant='outline-success' id='updateButton' onClick={ (event) => {
+                                      setSelectedIndex(index);
+                                      handleModalShow(event, task.id);
+                                    }}>
                                     Update
                                   </Button>
                                   <Button variant='outline-danger' onClick={() => handleDelete(index)}>
@@ -124,7 +239,7 @@ function Dashboard() {
               </div>
             </div>  
             {/* Button trigger modal */}
-            <Button variant='outline-primary' onClick={handleModalShow}>
+            <Button variant='outline-primary' id='addButton' onClick={handleModalShow}>
               Add Task
             </Button>
 
@@ -134,13 +249,60 @@ function Dashboard() {
                 <ModalTitle>Bug Tracker</ModalTitle>
               </ModalHeader>
               <ModalBody>
-                
+              <Form>
+                <Form.Group>
+                  <Form.Label>ID</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter ID"
+                    name="id"
+                    value={task.id}
+                    onChange={handleChange}
+                    readOnly={ actionSelected==='updateButton' }
+                  />
+
+                  <Form.Label>Description</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter Description"
+                    name="description"
+                    value={task.description}
+                    onChange={handleChange}
+                    readOnly={ actionSelected==='updateButton' }
+                  />
+
+                  <Form.Label>Severity</Form.Label>
+                  <Form.Control
+                    as="select"
+                    name="severity"
+                    value={task.severity}
+                    onChange={handleChange}
+                    disabled={ actionSelected==='updateButton' }
+                  >
+                    <option value={'Low'}>Low</option>
+                    <option value={'Medium'}>Medium</option>
+                    <option value={'High'}>High</option>
+                  </Form.Control>  
+
+                  <Form.Label>Status</Form.Label>
+                  <Form.Control
+                    as="select"
+                    name="status"
+                    value={task.status}
+                    onChange={(event) => handleChange(event)}
+                  >    
+                    <option value={'Open'}>Open</option>
+                    <option value={'Resolved'}>Resolved</option>
+                  </Form.Control>
+                </Form.Group>
+              </Form>
               </ModalBody>
               <ModalFooter>
                 <Button variant='outline-secondary' onClick={handleModalClose}>
                   Close
                 </Button>
-                <Button variant='outline-primary' onClick={handleModalClose}>
+                <Button variant='outline-primary' type='submit'onClick={ actionSelected==='updateButton' ? 
+                                        () => handleUpdate(selectedIndex, task.status) : handleAdd }>
                   Save
                 </Button>
               </ModalFooter>

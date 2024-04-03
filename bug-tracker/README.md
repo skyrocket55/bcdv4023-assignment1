@@ -12,9 +12,12 @@ Submitted On: April 3, 2024 10:00
 
 ### TO DOs
 1. Fix Modal Window <DONE>
-2. Add
-3. Update
+2. Add <DONE>
+3. Update <DONE> 
 4. Delete <DONE>
+5. Make Bug ID auto generated
+6. Convert bootstrap card to bootstrap-react
+7. Code Cleaning 
 
 ### Libraries Installed
 - web3, react-bootstrap, bootstrap 5, react-router-dom, react-fontawesome, fontawesome free-solid-svg-icons, fontawesome free-brands-svg-icon
