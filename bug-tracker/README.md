@@ -15,7 +15,7 @@ Submitted On: April 3, 2024 10:00
 2. Add <DONE>
 3. Update <DONE> 
 4. Delete <DONE>
-5. Make Bug ID auto generated
+5. Make Bug ID auto generated <DONE>
 6. Convert bootstrap card to bootstrap-react
 7. Code Cleaning 
 

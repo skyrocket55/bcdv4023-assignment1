@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader, 
-        ModalTitle, Form } from 'react-bootstrap';
+        ModalTitle, Form, Card, CardHeader, CardBody, CardFooter } from 'react-bootstrap';
 import { faBug } from '@fortawesome/free-solid-svg-icons';
 import Header from './Header';
 import { contractAddress, contractABI } from '../config/contract.config';
@@ -42,8 +41,9 @@ function Dashboard() {
       }
       console.log('updateButton task: ', task);
     } else {
-      // If adding a new task, clear the form fields
-      setTask({ id: '', description: '', severity: '', status: '' });
+      // If adding a new task, clear the form fields and calculate the next ID
+      const nextId = listOfTasks.length > 0 ? Math.max(...listOfTasks.map(task => task.id)) + 1 : 1;
+      setTask({ id: nextId.toString(), description: '', severity: ''});
     }
   }
 
@@ -77,6 +77,7 @@ function Dashboard() {
           }
           console.log('taskList: ', taskList.length);
           setTaskList(taskList);
+          console.log('loading listOfTasks: ', listOfTasks);
         }
       } catch (error) {
         console.error(error);
@@ -104,14 +105,12 @@ function Dashboard() {
   // handle form change
   const handleChange = (event) => {
     const { name, value } = event.target;
+    console.log('handleChange: ', name, value);
     setTask({
       ...task,
       [name]: value
     });
 
-    // Update the local state of the updated status
-    // const updatedTaskList = [...listOfTasks];
-    // setTaskList(updatedTaskList);
     console.log('handleChange updated taskList: ', listOfTasks);
   }
 
@@ -131,7 +130,6 @@ function Dashboard() {
   // Add task
   async function handleAdd(event) {
     event.preventDefault();
-    console.log('formData: ', task);
     try {
       // to fix "out of gas" error, set a higher gas limit
       const gasEstimate = await contract.methods.addTask(task.id, task.description, getSeverityUintValue(task.severity)).estimateGas({ from: account });
@@ -142,8 +140,12 @@ function Dashboard() {
         .addTask(task.id, task.description, getSeverityUintValue(task.severity))
         .send({ from: account, gas: gasLimit }); // modifies the state of the contract 
       
+      // Create a new task object with the same properties as the current task
+      // Ensure new task is added correctly to the list without any reactivity issues
+      const newTask = { ...task, status: 'Open', severity: task.severity}; // Set status to 'Open' for the new task
+
       // Refresh the list
-      const updatedTaskList = [...listOfTasks, task];
+      const updatedTaskList = [...listOfTasks, newTask];
       setTaskList(updatedTaskList);
 
       // reset the task form fields
@@ -158,12 +160,11 @@ function Dashboard() {
 
   // Update task status
   async function handleUpdate(index, status) {
-    console.log('handleUpdate: ', index, status);
     try {
       // Convert status to a boolean value
       const selectedStatus = status === 'Resolved' ? true : false;
       setUpdatedStatus(selectedStatus);
-      console.log('selectedStatus: ', selectedStatus);
+      
       await contract.methods
         .updateBugStatus(index, selectedStatus)
         .send({ from: account }); // modifies the state of the contract 
@@ -258,7 +259,7 @@ function Dashboard() {
                     name="id"
                     value={task.id}
                     onChange={handleChange}
-                    readOnly={ actionSelected==='updateButton' }
+                    readOnly
                   />
 
                   <Form.Label>Description</Form.Label>
@@ -279,6 +280,7 @@ function Dashboard() {
                     onChange={handleChange}
                     disabled={ actionSelected==='updateButton' }
                   >
+                    <option value="">Select Severity</option> {/* Empty option for default */}
                     <option value={'Low'}>Low</option>
                     <option value={'Medium'}>Medium</option>
                     <option value={'High'}>High</option>
@@ -292,7 +294,10 @@ function Dashboard() {
                     onChange={(event) => handleChange(event)}
                   >    
                     <option value={'Open'}>Open</option>
-                    <option value={'Resolved'}>Resolved</option>
+                    {actionSelected==='updateButton' ? (
+                      <option value={'Resolved'}>Resolved</option>
+                      ) : null
+                    } 
                   </Form.Control>
                 </Form.Group>
               </Form>
