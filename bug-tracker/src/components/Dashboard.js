@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader, 
-        ModalTitle, Form, Card, CardHeader, CardBody, CardFooter } from 'react-bootstrap';
+        ModalTitle, Form, Card, CardHeader, CardBody, Table, Alert } from 'react-bootstrap';
 import { faBug } from '@fortawesome/free-solid-svg-icons';
 import Header from './Header';
 import { contractAddress, contractABI } from '../config/contract.config';
@@ -14,23 +14,20 @@ function Dashboard() {
   const [task, setTask] = useState({id: '', description: '', severity: ''});
   const [actionSelected, setAction] = useState('');
   const [selectedIndex, setSelectedIndex] = useState('');
-  const [updatedStatus, setUpdatedStatus] = useState('');
-  
+  const [showAlert, setShowAlert] = useState(false);
 
   const handleModalClose = () => {
     setShowModal(false);
-    setUpdatedStatus('');
   };  
   
   // used in Add and Update
   const handleModalShow = async (event, taskId) => {
     setShowModal(true);
     setAction(event.target.id);
-    console.log('task id: ', task.id);
+    
     // If action is updateButton, populate the fields with selected task values
     if(event.target.id === 'updateButton') {
       const selectedTask = listOfTasks.find(task => task.id === taskId);
-      console.log('updateButton selectedTask: ', selectedTask);
       if(selectedTask) {
         setTask({
           id: selectedTask.id,
@@ -39,7 +36,6 @@ function Dashboard() {
           status: selectedTask.status
         })
       }
-      console.log('updateButton task: ', task);
     } else {
       // If adding a new task, clear the form fields and calculate the next ID
       const nextId = listOfTasks.length > 0 ? Math.max(...listOfTasks.map(task => task.id)) + 1 : 1;
@@ -66,18 +62,14 @@ function Dashboard() {
 
         // Fetch all of the bugs and create the list to display
         const bugNum = await contract.methods.getTaskCount().call({ from: defaultAccount });
-        console.log('bugNum: ', bugNum, bugNum > 0);
         if (bugNum > 0) {
           const taskList = [];
           for (let i = 0; i < bugNum; i++) {
             const bug = await contract.methods.getTask(i).call({ from: defaultAccount });
-            console.log('Bug:', bug.id, bug.description, bug.severity, bug.status);
             bug.status = !bug.status ? 'Open' : 'Resolved';
             taskList.push(bug);
           }
-          console.log('taskList: ', taskList.length);
           setTaskList(taskList);
-          console.log('loading listOfTasks: ', listOfTasks);
         }
       } catch (error) {
         console.error(error);
@@ -105,13 +97,10 @@ function Dashboard() {
   // handle form change
   const handleChange = (event) => {
     const { name, value } = event.target;
-    console.log('handleChange: ', name, value);
     setTask({
       ...task,
       [name]: value
     });
-
-    console.log('handleChange updated taskList: ', listOfTasks);
   }
 
   // convert severity string to numerical values for uint contract param
@@ -130,6 +119,13 @@ function Dashboard() {
   // Add task
   async function handleAdd(event) {
     event.preventDefault();
+
+    // Check if the required fields are filled
+    if (!task.description || !task.severity) {
+      setShowAlert(true);
+      return;
+    }
+
     try {
       // to fix "out of gas" error, set a higher gas limit
       const gasEstimate = await contract.methods.addTask(task.id, task.description, getSeverityUintValue(task.severity)).estimateGas({ from: account });
@@ -163,7 +159,6 @@ function Dashboard() {
     try {
       // Convert status to a boolean value
       const selectedStatus = status === 'Resolved' ? true : false;
-      setUpdatedStatus(selectedStatus);
       
       await contract.methods
         .updateBugStatus(index, selectedStatus)
@@ -185,14 +180,15 @@ function Dashboard() {
 
   return (
     <div>
-        <div className='card mt-3'>
-          <div className='card-header'>
+        
+        <Card className='mt-3'>
+          <CardHeader>
             <Header title="Bug Tracker" margin="ml-2" icon={faBug} size="xs"/>
-          </div>
-          <div className='card-body text-center justify-content-center'>
+          </CardHeader>
+          <CardBody className='text-center justify-content-center'>
             <div className='row alert alert-info'>
               <div className='table-responsive'>
-                <table className='table table-hover'>
+                <Table striped bordered hover>
                   <thead>
                     <tr>
                       <th scope='col'>Bug ID</th>
@@ -203,7 +199,7 @@ function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    { listOfTasks.length > 0 ? (
+                    { listOfTasks.length > 0 && listOfTasks.some(task => task.id !== '') ? (
                       listOfTasks.map((task, index) => {
                         return (
                           <tr key={index}>
@@ -214,12 +210,13 @@ function Dashboard() {
                                 <td width='20%'>{task.severity}</td>
                                 <td width='20%'>{task.status}</td>
                                 <td width='20%'>
-                                  <Button variant='outline-success' id='updateButton' onClick={ (event) => {
+                                  <Button className='mb-2 mb-md-0 mr-md-2' variant='outline-success' id='updateButton' 
+                                    onClick={ (event) => {
                                       setSelectedIndex(index);
                                       handleModalShow(event, task.id);
-                                    }}>
+                                  }}>
                                     Update
-                                  </Button>
+                                  </Button>{''} {/*Add space as mr-2 didn't work */}
                                   <Button variant='outline-danger' onClick={() => handleDelete(index)}>
                                     Delete
                                   </Button>
@@ -236,7 +233,7 @@ function Dashboard() {
                     )}
                     
                   </tbody>
-                </table>
+                </Table>
               </div>
             </div>  
             {/* Button trigger modal */}
@@ -255,7 +252,6 @@ function Dashboard() {
                   <Form.Label>ID</Form.Label>
                   <Form.Control
                     type="text"
-                    placeholder="Enter ID"
                     name="id"
                     value={task.id}
                     onChange={handleChange}
@@ -269,6 +265,7 @@ function Dashboard() {
                     name="description"
                     value={task.description}
                     onChange={handleChange}
+                    required
                     readOnly={ actionSelected==='updateButton' }
                   />
 
@@ -278,6 +275,7 @@ function Dashboard() {
                     name="severity"
                     value={task.severity}
                     onChange={handleChange}
+                    required
                     disabled={ actionSelected==='updateButton' }
                   >
                     <option value="">Select Severity</option> {/* Empty option for default */}
@@ -301,6 +299,9 @@ function Dashboard() {
                   </Form.Control>
                 </Form.Group>
               </Form>
+              <Alert className='mt-2' variant="danger" show={showAlert} onClose={() => setShowAlert(false)} dismissible>
+                  Please fill out all the required fields.
+              </Alert>
               </ModalBody>
               <ModalFooter>
                 <Button variant='outline-secondary' onClick={handleModalClose}>
@@ -312,8 +313,8 @@ function Dashboard() {
                 </Button>
               </ModalFooter>
             </Modal>
-          </div>
-      </div>
+          </CardBody>
+      </Card>
     </div>
   )
 }
